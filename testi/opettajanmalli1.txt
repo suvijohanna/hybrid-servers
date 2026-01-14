@@ -1,0 +1,143 @@
+// index.ts
+import express, { NextFunction, Request, Response } from 'express';
+import api from './api/v1';
+import CustomError from './classes/CustomError';
+
+const app = express();
+const port = 3000;
+
+app.use(express.json());
+
+app.get('/', (_req, res: Response<string>) => {
+  res.send('Hello World!');
+});
+
+app.use('/api/v1', api);
+
+app.use(
+  (
+    err: CustomError,
+    req: Request,
+    res: Response<string>,
+    next: NextFunction,
+  ) => {
+    console.error(err.stack);
+    res.status(err.status).send('Something broke!');
+  },
+);
+
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
+
+
+
+
+
+// LocalTypes.ts
+type Article = {
+  id: number;
+  title: string;
+  content: string;
+};
+
+export { Article };
+
+
+// api/v1/models/articleModel.ts
+import { Article } from '../../../types/LocalTypes';
+
+const dummyArticles: Article[] = [
+  {
+    id: 1,
+    title: 'TypeScriptin perusteet',
+    content: 'TypeScript on JavaScriptin päälle rakennettu tyypitetty kieli...',
+  },
+  {
+    id: 2,
+    title: 'React ja Hooks',
+    content:
+      'useEffect ja useState ovat yleisimpiä hookkeja React-kehityksessä.',
+  },
+  {
+    id: 3,
+    title: 'Moderni CSS-suunnittelu',
+    content: 'CSS Grid ja Flexbox tekevät asettelusta helpompaa kuin koskaan.',
+  },
+  {
+    id: 4,
+    title: 'Vite vs Webpack',
+    content:
+      'Vite tarjoaa huomattavasti nopeamman kehityskokemuksen kuin vanhemmat työkalut.',
+  },
+];
+
+const getArticles = () => {
+  return dummyArticles;
+};
+
+const getArticleById = (id: number) => {
+  const article = dummyArticles.find((article) => article.id === id);
+  if (!article) {
+    throw new Error('Article not found');
+  }
+  return article;
+};
+
+export { getArticles, getArticleById };
+
+// articleController.ts
+import { getArticles, getArticleById } from '../models/articleModel';
+import { Article } from '../../../types/LocalTypes';
+import { NextFunction, Request, Response } from 'express';
+
+const articlesGet = (
+  _req: Request,
+  res: Response<Article[]>,
+  _next: NextFunction,
+) => {
+  res.json(getArticles());
+};
+
+const articleGet = (
+  req: Request<{ id: string }>,
+  res: Response<Article>,
+  next: NextFunction,
+) => {
+  try {
+    const { id } = req.params;
+    const article = getArticleById(Number(id));
+    res.json(article);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export { articlesGet, articleGet };
+
+
+// articleRouter.ts
+import { Router } from 'express';
+import { articlesGet, articleGet } from '../controllers/articleController';
+
+const router = Router();
+
+router.route('/').get(articlesGet);
+
+router.route('/:id').get(articleGet);
+
+export default router;
+
+// api/v1/index.ts
+import { Router } from 'express';
+import articleRouter from './routes/articleRouter';
+
+const router = Router();
+
+router.use('/articles', articleRouter);
+
+export default router;
+
+
+
+
